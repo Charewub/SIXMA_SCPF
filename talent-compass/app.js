@@ -1,7 +1,7 @@
 import {initializeApp} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js';
 import {getAuth,GoogleAuthProvider,signInWithPopup,onAuthStateChanged,signOut} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
 import {getFunctions,httpsCallable} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-functions.js';
-const app=initializeApp(await fetch('/__/firebase/init.json').then(r=>r.json()));
+const app = initializeApp(window.SIXMA_FIREBASE_CONFIG);
 const auth=getAuth(app),rpc=httpsCallable(getFunctions(app,'asia-southeast1'),'tcAssess');
 const root=document.querySelector('#app'),msg=document.querySelector('#msg');
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
