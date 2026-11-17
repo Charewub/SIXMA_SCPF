@@ -1,8 +1,9 @@
-import {connect,VERSION} from './firebase-adapter.js?v=18.4';
-import {AssessmentSession,draftKey} from './session.js?v=18.4';
+import {connect,VERSION,allowedAccount} from './firebase-adapter.js?v=18.6';
+import {AssessmentSession,draftKey} from './session.js?v=18.6';
 
 const $=id=>document.getElementById(id);
 const config=window.SIXMA_FIREBASE_CONFIG;
+const portalModules=Array.isArray(window.SIXMA_PORTAL_MODULES)?window.SIXMA_PORTAL_MODULES:[];
 const pageNames=['home','information','instructions','assessment','completion'];
 const state={backend:null,ready:false,busy:false,view:'home',positions:[],assessments:[],questions:[],session:null,information:null};
 const uuid=()=>crypto.randomUUID();
@@ -56,6 +57,13 @@ function showPage(name) {
   });
   window.scrollTo({top:0,behavior:'instant'});
 }
+function showLanding(name) {
+  $('authLoading').hidden=true;
+  $('loginPage').hidden=name!=='login';
+  $('portalPage').hidden=name!=='portal';
+  $('sixmaApp').hidden=name!=='sixma';
+  if(name!=='sixma')window.scrollTo({top:0,behavior:'instant'});
+}
 async function action(fn) {
   if(state.busy)return;
   state.busy=true;
@@ -70,7 +78,10 @@ function updateControls() {
     if(!['confirmAccept','confirmCancel'].includes(node.id))node.disabled=state.busy;
   });
   $('createNew').disabled=state.busy||!state.ready;
-  $('signIn').disabled=state.busy||!state.backend;
+  $('googleSignIn').disabled=state.busy||!state.backend;
+  $('portalSignOut').disabled=state.busy||!state.backend;
+  $('signOut').disabled=state.busy||!state.backend;
+  $('portalTop').disabled=state.busy;
   const s=state.session;
   if(s) {
     $('optionA').disabled=state.busy||s.completed;
@@ -120,6 +131,54 @@ function icon(name) {
   node.setAttribute('aria-hidden','true');
   node.textContent=name;
   return node;
+}
+function renderPortal() {
+  const grid=$('portalGrid');
+  grid.replaceChildren();
+  portalModules.forEach(module=>{
+    const soon=module.status!=='active';
+    const tile=document.createElement('button');
+    tile.type='button';
+    tile.className='portal-tile portal-tile--'+module.theme+(soon?' is-coming-soon':'');
+    tile.disabled=soon;
+    tile.setAttribute('aria-label',module.title+' '+module.subtitle+(soon?' — Coming soon':' — Open'));
+    const symbol=icon(module.icon);symbol.classList.add('portal-tile-icon');
+    const title=document.createElement('strong');title.className='portal-tile-title';title.textContent=module.title;
+    const subtitle=document.createElement('span');subtitle.className='portal-tile-subtitle';subtitle.textContent=module.subtitle;
+    const content=document.createElement('span');content.className='portal-tile-copy';
+    content.append(title,subtitle);
+    tile.append(symbol,content);
+    if(soon) {
+      const badge=document.createElement('span');badge.className='coming-soon-badge';badge.textContent='Coming soon';tile.appendChild(badge);
+    } else {
+      const arrow=icon('north_east');arrow.classList.add('portal-tile-arrow');tile.appendChild(arrow);
+      tile.addEventListener('click',()=>action(()=>openPortalModule(module)));
+    }
+    grid.appendChild(tile);
+  });
+}
+async function openPortalModule(module) {
+  if(module.target==='sixma') {
+    showLanding('sixma');
+    showPage('home');
+    await refreshData();
+    showPage('home');
+    return;
+  }
+  if(module.url) {
+    window.location.assign(module.url);
+    return;
+  }
+  message('Talent Compass จะเชื่อมปลายทางในขั้นตอนถัดไป',true);
+}
+async function backToPortal() {
+  const s=state.session;
+  if(s?.dirty&&!s.completed) {
+    keepDraft();
+    if(!await confirmAction('ยังมีคำตอบที่เก็บเฉพาะในเครื่อง ต้องการกลับไปหน้า Portal หรือไม่?'))return;
+  }
+  state.session=null;
+  showLanding('portal');
 }
 function renderHistory() {
   const body=$('historyBody');
@@ -381,15 +440,30 @@ async function start() {
 async function boot() {
   try {
     state.backend=await connect(config);
-    const user=state.backend.user();
-    $('accountEmail').textContent=user?.email||'Sign in to open your workspace';
-    $('signIn').hidden=!!user;$('signOut').hidden=!user;
-    if(user)await refreshData();
-  } catch(error){message(errorText(error),true);}
+    let user=state.backend.user();
+    if(user&&!allowedAccount(user)) {
+      await state.backend.logout();
+      user=null;
+    }
+    if(user) {
+      $('accountEmail').textContent=user.email||'';
+      $('portalEmail').textContent=user.email||'';
+      renderPortal();
+      showLanding('portal');
+    } else showLanding('login');
+  } catch(error){showLanding('login');message(errorText(error),true);}
   finally{updateControls();}
 }
-$('signIn').addEventListener('click',()=>action(async()=>{await state.backend.login();location.reload();}));
-$('signOut').addEventListener('click',()=>action(async()=>{keepDraft();await state.backend.logout();state.session=null;location.reload();}));
+$('googleSignIn').addEventListener('click',()=>action(async()=>{
+  const result=await state.backend.login();
+  $('accountEmail').textContent=result.user.email||'';
+  $('portalEmail').textContent=result.user.email||'';
+  renderPortal();showLanding('portal');
+}));
+const logout=()=>action(async()=>{keepDraft();await state.backend.logout();state.session=null;location.reload();});
+$('signOut').addEventListener('click',logout);
+$('portalSignOut').addEventListener('click',logout);
+$('portalTop').addEventListener('click',()=>action(backToPortal));
 $('createNew').addEventListener('click',()=>{if(!state.busy && state.ready)newInformation();});
 $('homeTop').addEventListener('click',()=>action(home));
 $('infoBack').addEventListener('click',()=>action(home));

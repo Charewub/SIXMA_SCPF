@@ -1,3 +1,8 @@
+export function allowedAccount(user) {
+  const email=String(user?.email||'').toLowerCase();
+  return !!user && user.emailVerified===true
+    && (/^[^@]+@airasia\.com$/.test(email) || email==='guntrakon@gmail.com');
+}
 export const VERSION = 'SIXMA_LEADING_PEOPLE_72_TYPE01_02_03_V1';
 export const KEYS = Array.from({length:72}, (_,i) => 'Q'+String(i+1).padStart(2,'0'));
 export function choices(row) { return KEYS.map(key => row?.[key] || ''); }
@@ -58,13 +63,24 @@ export async function connect(config) {
   const ref=(tab,id)=>f.doc(db,tab,id);
   const list=async tab=>(await f.getDocsFromServer(f.collection(db,tab))).docs.map(d=>d.data());
   const actor=()=>auth.currentUser?.uid;
-  const requireUser=()=>{if(!actor())throw new Error('Sign in with your authorized Google account to continue.');};
+  const requireUser=()=>{
+    if(!allowedAccount(auth.currentUser))throw new Error('กรุณาใช้บัญชี @airasia.com หรือบัญชีที่ได้รับข้อยกเว้น และยืนยันอีเมลแล้ว');
+  };
   const audit=(tx,input,event,id,at)=>tx.set(ref('AUDIT_LOG',input.request_id),{
     event_id:input.request_id,request_id:input.request_id,event_type:event,assessment_id:id,
     actor:actor(),created_at:at,pair_id:'',previous_option:'',new_option:''});
   return {
     user:()=>auth.currentUser,
-    login:()=>authSDK.signInWithPopup(auth,new authSDK.GoogleAuthProvider()),
+    async login() {
+      const provider=new authSDK.GoogleAuthProvider();
+      provider.setCustomParameters({prompt:'select_account'});
+      const result=await authSDK.signInWithPopup(auth,provider);
+      if(!allowedAccount(result.user)) {
+        await authSDK.signOut(auth);
+        throw new Error('ระบบนี้อนุญาตบัญชี @airasia.com และบัญชีที่ได้รับข้อยกเว้นเท่านั้น');
+      }
+      return result;
+    },
     logout:()=>authSDK.signOut(auth),
     async call(method,input={}) {
       requireUser();
