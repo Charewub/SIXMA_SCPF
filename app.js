@@ -1,15 +1,42 @@
-import {connect,VERSION} from './firebase-adapter.js?v=18.1';
-import {AssessmentSession,draftKey} from './session.js?v=18.1';
+import {connect,VERSION} from './firebase-adapter.js?v=18.2';
+import {AssessmentSession,draftKey} from './session.js?v=18.2';
 
 const $=id=>document.getElementById(id);
 const config=window.SIXMA_FIREBASE_CONFIG;
 const pageNames=['home','information','instructions','assessment','completion'];
 const state={backend:null,ready:false,busy:false,view:'home',positions:[],assessments:[],questions:[],session:null,information:null};
 const uuid=()=>crypto.randomUUID();
+let toastTimer;
 function message(text='',error=false) {
-  $('feedback').textContent=text;
-  $('feedback').hidden=!text;
-  $('feedback').classList.toggle('success',!error);
+  const toast=$('feedback');
+  clearTimeout(toastTimer);
+  toast.replaceChildren();
+  toast.hidden=!text;
+  if(!text)return;
+  toast.classList.toggle('success',!error);
+  toast.appendChild(icon(error?'error':'check_circle'));
+  const copy=document.createElement('span');
+  copy.className='toast-copy';
+  copy.textContent=text;
+  toast.appendChild(copy);
+  const dismiss=document.createElement('button');
+  dismiss.type='button';
+  dismiss.className='toast-close';
+  dismiss.setAttribute('aria-label','Dismiss notification');
+  dismiss.appendChild(icon('close'));
+  dismiss.addEventListener('click',()=>{toast.hidden=true;});
+  toast.appendChild(dismiss);
+  if(!error)toastTimer=setTimeout(()=>{toast.hidden=true;},4500);
+}
+function confirmAction(text) {
+  const dialog=$('confirmDialog');
+  $('confirmMessage').textContent=text;
+  return new Promise(resolve=>{
+    dialog.returnValue='cancel';
+    dialog.addEventListener('close',()=>resolve(dialog.returnValue==='confirm'),{once:true});
+    dialog.showModal();
+    $('confirmCancel').focus();
+  });
 }
 function errorText(error) {
   if(String(error.message).includes('REVISION_CONFLICT')) {
@@ -19,8 +46,7 @@ function errorText(error) {
 }
 function showPage(name) {
   state.view=name;
-  $('banner').classList.toggle('home-banner',name==='home');
-  $('banner').classList.toggle('completion-banner',name==='completion');
+  closePositions();
   for(const page of pageNames)$(page+'Page').hidden=page!==name;
   $('steps').hidden=!['information','instructions'].includes(name);
   document.querySelectorAll('[data-step]').forEach(step=>{
@@ -40,7 +66,9 @@ async function action(fn) {
   finally{state.busy=false;updateControls();renderSaveState();}
 }
 function updateControls() {
-  document.querySelectorAll('button,input').forEach(node=>node.disabled=state.busy);
+  document.querySelectorAll('button,input').forEach(node=>{
+    if(!['confirmAccept','confirmCancel'].includes(node.id))node.disabled=state.busy;
+  });
   $('createNew').disabled=state.busy||!state.ready;
   $('signIn').disabled=state.busy||!state.backend;
   const s=state.session;
@@ -123,10 +151,62 @@ function renderHistory() {
   }
   $('historyEmpty').hidden=list.length>0;
   $('historyEmpty').textContent=state.ready?'No assessments yet. Select Create New to begin.':'Sign in to view your assessment history.';
-  const options=$('positionOptions');options.replaceChildren();
-  for(const p of state.positions) {
-    const option=document.createElement('option');option.value=p.title;options.appendChild(option);
+  renderPositions();
+}
+let positionActive=-1;
+let showAllPositions=false;
+let visiblePositions=[];
+function closePositions() {
+  $('positionOptions').hidden=true;
+  $('targetPosition').setAttribute('aria-expanded','false');
+  $('positionToggle').setAttribute('aria-expanded','false');
+  $('targetPosition').removeAttribute('aria-activedescendant');
+  positionActive=-1;
+}
+function renderPositions() {
+  const query=showAllPositions?'':$('targetPosition').value.trim().toLocaleLowerCase();
+  visiblePositions=state.positions.filter(p=>p.title.toLocaleLowerCase().includes(query)).map(p=>p.title);
+  if(query && !state.positions.some(p=>p.title.toLocaleLowerCase()===query)) {
+    visiblePositions.push($('targetPosition').value.trim());
   }
+  const list=$('positionOptions');
+  list.replaceChildren();
+  visiblePositions.forEach((title,index)=>{
+    const option=document.createElement('button');
+    option.type='button';
+    option.className='position-option';
+    option.id='position-option-'+index;
+    option.setAttribute('role','option');
+    option.setAttribute('aria-selected',String(index===positionActive));
+    option.tabIndex=-1;
+    const label=document.createElement('span');
+    label.textContent=title;
+    option.appendChild(label);
+    if(!state.positions.some(p=>p.title===title)) {
+      const hint=document.createElement('small');
+      hint.textContent='Create new position';
+      option.appendChild(hint);
+    }
+    option.addEventListener('mousedown',event=>event.preventDefault());
+    option.addEventListener('click',()=>selectPosition(index));
+    list.appendChild(option);
+  });
+  if(positionActive>=0 && visiblePositions[positionActive]) {
+    $('targetPosition').setAttribute('aria-activedescendant','position-option-'+positionActive);
+  } else $('targetPosition').removeAttribute('aria-activedescendant');
+}
+function openPositions(all=false) {
+  showAllPositions=all;
+  renderPositions();
+  $('positionOptions').hidden=false;
+  $('targetPosition').setAttribute('aria-expanded','true');
+  $('positionToggle').setAttribute('aria-expanded','true');
+}
+function selectPosition(index) {
+  if(!visiblePositions[index])return;
+  $('targetPosition').value=visiblePositions[index];
+  $('targetPosition').focus();
+  closePositions();
 }
 async function refreshData() {
   const data=await state.backend.call('getBootstrap');
@@ -143,7 +223,7 @@ async function home() {
   const s=state.session;
   if(s?.dirty && !s.completed) {
     keepDraft();
-    if(!confirm('ยังมีคำตอบที่เก็บเฉพาะในเครื่อง ต้องการกลับ Home หรือไม่? คุณสามารถกลับมา Resume เพื่อบันทึกภายหลังได้'))return;
+    if(!await confirmAction('ยังมีคำตอบที่เก็บเฉพาะในเครื่อง ต้องการกลับ Home หรือไม่? คุณสามารถกลับมา Resume เพื่อบันทึกภายหลังได้'))return;
   }
   showPage('home');
   state.session=null;
@@ -164,7 +244,7 @@ async function openAssessment(id) {
   const s=state.session,local=readDraft(id);
   let restored=false;
   if(s.canRestore(local)) {
-    if(confirm('พบคำตอบที่ยังไม่ได้บันทึกบนอุปกรณ์นี้ ต้องการ Restore local draft หรือไม่?')) {
+    if(await confirmAction('พบคำตอบที่ยังไม่ได้บันทึกบนอุปกรณ์นี้ ต้องการ Restore local draft หรือไม่?')) {
       s.restore(local);restored=true;
     } else clearDraft(id);
   } else if(local && Number(local.base_revision)!==s.revision && !s.completed) {
@@ -239,7 +319,7 @@ async function save(mode='save',exit=false) {
   if(!s || s.completed)return;
   if(mode==='submit') {
     if(s.count!==72)throw new Error('กรุณาตอบให้ครบ 72 ข้อก่อน Submit');
-    if(!confirm('ยืนยัน Submit ผลประเมิน? หลังส่งแล้วจะเปิดดูผลได้'))return;
+    if(!await confirmAction('ยืนยัน Submit ผลประเมิน? หลังส่งแล้วจะเปิดดูผลได้'))return;
   }
   const payload=s.request(mode,uuid);
   keepDraft();
@@ -261,7 +341,7 @@ async function save(mode='save',exit=false) {
 async function removeAssessment() {
   const s=state.session;
   if(!s || s.completed)return;
-  if(!confirm('ยืนยันลบฉบับร่างสำหรับ '+s.positionTitle+'? คำตอบในรอบนี้จะถูกลบถาวร'))return;
+  if(!await confirmAction('ยืนยันลบฉบับร่างสำหรับ '+s.positionTitle+'? คำตอบในรอบนี้จะถูกลบถาวร'))return;
   const result=await state.backend.call('deleteAssessment',{assessment_id:s.id,expected_revision:s.revision,request_id:uuid()});
   if(!result.ok || !result.deleted)throw new Error('Deletion was not confirmed.');
   clearDraft(s.id);state.assessments=state.assessments.filter(a=>a.id!==s.id);
@@ -335,4 +415,29 @@ window.addEventListener('beforeunload',event=>{
     keepDraft();event.preventDefault();event.returnValue='';
   }
 });
+$('positionToggle').addEventListener('click',()=>{
+  if($('positionOptions').hidden)openPositions(true);else closePositions();
+});
+$('targetPosition').addEventListener('focus',()=>openPositions(true));
+$('targetPosition').addEventListener('input',()=>{positionActive=-1;openPositions();});
+$('targetPosition').addEventListener('keydown',event=>{
+  if(event.key==='Escape'){closePositions();return;}
+  if(event.key==='ArrowDown' || event.key==='ArrowUp') {
+    event.preventDefault();
+    if($('positionOptions').hidden)openPositions();
+    const direction=event.key==='ArrowDown'?1:-1;
+    positionActive=Math.max(0,Math.min(visiblePositions.length-1,positionActive+direction));
+    renderPositions();
+    document.getElementById('position-option-'+positionActive)?.scrollIntoView({block:'nearest'});
+  }
+  if(event.key==='Enter' && !$('positionOptions').hidden && positionActive>=0) {
+    event.preventDefault();selectPosition(positionActive);
+  }
+  if(event.key==='Tab')closePositions();
+});
+document.addEventListener('pointerdown',event=>{
+  if(!event.target.closest('.position-combobox'))closePositions();
+});
+$('confirmCancel').addEventListener('click',()=>$('confirmDialog').close('cancel'));
+$('confirmAccept').addEventListener('click',()=>$('confirmDialog').close('confirm'));
 boot();
