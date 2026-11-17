@@ -1,14 +1,63 @@
 import {initializeApp} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js';
 import {getAuth,GoogleAuthProvider,signInWithPopup,onAuthStateChanged,signOut} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
-import {getFunctions,httpsCallable} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-functions.js';
+import {getFirestore,collection,doc,getDocFromServer,getDocsFromServer,query,orderBy,runTransaction} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
 const config = window.SIXMA_FIREBASE_CONFIG;
 if (!config?.projectId || !config?.apiKey) throw Error('โหลด firebase-config.js ของ Portal ไม่สำเร็จ');
 const app = initializeApp(config);
-const auth=getAuth(app),rpc=httpsCallable(getFunctions(app,'asia-southeast1'),'tcAssess');
+const auth = getAuth(app);
 const root=document.querySelector('#app'),msg=document.querySelector('#msg');
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let id,record,page,box;
-async function call(action){return (await rpc({action,id:id||null,input:record||null,revision:record?.revision||0})).data;}
+const db = getFirestore(app);
+
+async function call(action) {
+  const email = auth.currentUser.email.toLowerCase();
+  const records = collection(db, 'tcManagers', email, 'assessments');
+  try {
+    if (action === 'list') {
+      const snapshot = await getDocsFromServer(query(records, orderBy('updated', 'desc')));
+      return snapshot.docs.map(row => ({...row.data(), id: row.id}));
+    }
+    const ref = doc(records, id);
+    if (action === 'get') {
+      const snapshot = await getDocFromServer(ref);
+      if (!snapshot.exists()) throw Error('ไม่พบรายการ');
+      return snapshot.data();
+    }
+    const finishing = action === 'finish';
+    const {people, answers, period, department, path, revision} = record;
+    if (new Set(people.map(p => p.empId)).size !== people.length)
+      throw Error('รหัสพนักงานในรายการต้องไม่ซ้ำกัน');
+    if (finishing && Q.some(q => people.some(p => ![1,2,3].includes(answers[q.id]?.[p.id]))))
+      throw Error('กรุณาประเมินให้ครบก่อนยืนยัน');
+    return await runTransaction(db, async transaction => {
+      const snapshot = await transaction.get(ref);
+      const previous = snapshot.data();
+      if (previous?.status === 'FINAL') {
+        if (finishing) return previous;
+        throw Error('รายการนี้ยืนยันผลแล้ว กรุณาเปิดรายการล่าสุด');
+      }
+      if ((previous?.revision ?? 0) !== revision)
+        throw Error('รายการถูกแก้ไขจากหน้าต่างอื่น กรุณากลับหน้า Home แล้วเปิดรายการล่าสุด');
+      const updated = new Date().toISOString();
+      const next = {owner: email, people, answers, period, department, path, revision: revision + 1,
+        status: finishing ? 'FINAL' : 'DRAFT', bankVersion: 'v2.1', scoringVersion: 'v1', updated};
+      if (finishing) {
+        next.finalizedAt = updated;
+        next.results = people.map(person => {
+          const scores = score(next, person);
+          return {id: person.id, ...scores, box: GROUPS[lev(scores.py)][lev(scores.px)]};
+        });
+      }
+      transaction.set(ref, next);
+      return next;
+    });
+  } catch (error) {
+    if (error.code === 'permission-denied')
+      throw Error('บัญชีนี้ยังไม่มีสิทธิ์ทำรายการ กรุณาตรวจสิทธิ์ Manager และ Firestore Rules');
+    throw error;
+  }
+}
 const button=(action,label)=>'<button class="btn" data-action="'+action+'">'+label+'</button>';
 async function home(){const rows=await call('list');root.innerHTML='<h1>My Assessments</h1>'+button('new','สร้างแบบประเมิน')+button('logout','ออกจากระบบ')+rows.map(r=>'<div class="listcard">'+button('open-'+r.id,esc(r.department)+' · '+esc(r.period)+' · '+(r.status==='FINAL'?'บันทึกผลแล้ว':'ฉบับร่าง'))+'</div>').join('');}
 function create(){root.innerHTML='<form class="card stack"><h2>สร้างแบบประเมิน</h2><label>หน่วยงาน <input required name="dept" value="" placeholder="กรอกแผนก"></label><label>รอบประเมิน <input required name="period"></label><label>Talent Pathway <select name="path"><option value="manager">Supervisor | Team Leader → Assistant Manager | Manager</option><option value="director">Manager | Senior Manager → HOD</option></select></label><h3>ผู้รับการประเมิน 3–5 คน</h3><p class="muted">กรอกชื่อภาษาอังกฤษและรหัสพนักงานที่ขึ้นต้นด้วย 1</p>'+Array.from({length:5},(_,i)=>'<div><input name="name'+i+'" aria-label="ชื่อพนักงานภาษาอังกฤษ" maxlength="150" pattern="[A-Za-z0-9 ]+" title="ใช้ A–Z, a–z, 0–9 และเว้นวรรคระหว่างชื่อ" placeholder="ชื่อพนักงานภาษาอังกฤษ" '+(i<3?'required':'')+'> <input name="emp'+i+'" aria-label="รหัสพนักงาน" type="text" inputmode="numeric" maxlength="100" pattern="1[0-9]*" title="เริ่มด้วย 1 และใช้ตัวเลขเท่านั้น เช่น 1020194" placeholder="เช่น 1020194" '+(i<3?'required':'')+'></div>').join('')+'<button class="btn primary">เริ่มประเมิน</button></form>'+button('home','กลับ');}
