@@ -10,7 +10,7 @@ export function validateAnswers(answers, finish = false) {
 }
 export function project(a) {
   return {id:a.assessment_id,positionId:a.position_id,positionTitle:a.position_title_snapshot,
-    roundNo:Number(a.round_no),questionnaireVersion:a.questionnaire_version,status:a.status,
+    roundNo:Number(a.round_no),relationship:a.relationship||'',questionnaireVersion:a.questionnaire_version,status:a.status,
     answeredCount:Number(a.answered_count),totalPairs:72,currentPairNo:Number(a.current_pair_no),
     revision:Number(a.revision),createdAt:a.created_at,updatedAt:a.updated_at,completedAt:a.completed_at || null};
 }
@@ -104,6 +104,10 @@ export async function connect(config) {
         });
       }
       if(method==='createAssessment') {
+        const relationship=input.relationship||'';
+        if(relationship && !['Line Manager','Current Role Holder','Peers','Direct Reports'].includes(relationship)) {
+          throw new Error('INVALID_RELATIONSHIP');
+        }
         const id='ASM-'+input.request_id;
         return f.runTransaction(db,async tx=>{
           const [existing,pos]=await Promise.all([tx.get(ref('ASSESSMENTS',id)),tx.get(ref('POSITIONS',input.position_id))]);
@@ -111,7 +115,7 @@ export async function connect(config) {
           if(!pos.exists() || String(pos.data().is_active).toUpperCase()!=='TRUE')throw new Error('POSITION_NOT_FOUND_OR_INACTIVE');
           const at=new Date().toISOString(),p=pos.data(),round=Number(p.last_round_no||0)+1;
           const a={assessment_id:id,position_id:input.position_id,position_title_snapshot:p.position_title,
-            round_no:round,questionnaire_version:VERSION,status:'Not Started',answered_count:0,total_pairs:72,
+            round_no:round,relationship,questionnaire_version:VERSION,status:'Not Started',answered_count:0,total_pairs:72,
             current_pair_no:1,revision:0,create_request_id:input.request_id,created_at:at,updated_at:at,completed_at:'',created_by:actor()};
           const r={assessment_id:id,position_id:a.position_id,position_title:p.position_title,round_no:round,
             questionnaire_version:VERSION,status:a.status,answered_count:0,revision:0,saved_at:'',last_request_id:'',saved_by:actor()};
