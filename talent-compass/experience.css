@@ -227,3 +227,16 @@ form.stack>div:has(>input){display:grid;grid-template-columns:1fr 1fr;gap:15px}
 .person-input{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 .person-input label{display:grid;gap:7px}
 @media(max-width:760px){.original-image img{min-width:820px}.person-input{grid-template-columns:1fr}}
+
+.portrait-journey{display:none}
+.original-image img.tc-cover-img,.original-image img.byb-poster{display:block!important;width:100%!important;min-width:0!important;height:auto!important;max-height:none!important}
+form.stack #personInputs{display:flex!important;flex-direction:column;gap:16px}
+form.stack #personInputs>.person-input{display:grid;width:100%;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:12px}
+.person-input label,.person-input input{min-width:0}
+form.stack .actions .btn[data-action="add-person"]{background:#173761;color:white;border-color:#173761}
+.head .brand{display:inline-flex;align-items:center;gap:9px;color:#64748b}
+@media(orientation:portrait) and (max-width:760px),(orientation:portrait) and (pointer:coarse){
+.welcome .original-image,.guide-original{display:none!important}
+.portrait-journey,.byb-mobile.text-alternative{display:block!important}
+.portrait-journey ul{padding-left:22px}.portrait-journey li{margin:8px 0}
+}
