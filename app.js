@@ -158,6 +158,10 @@ function renderPortal() {
   });
 }
 async function openPortalModule(module) {
+  if (module.id === 'talent-compass' && !module.url) {
+    window.location.assign('./talent-compass/');
+    return;
+  }
   if(module.target==='sixma') {
     showLanding('sixma');
     showPage('home');
