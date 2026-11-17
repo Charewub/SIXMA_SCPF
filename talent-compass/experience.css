@@ -220,3 +220,10 @@ input[type=checkbox]{width:20px}.choices{margin-top:14px}.rating{margin-top:20px
 @media(max-width:760px){.shell{padding:22px 14px 65px}.welcome{padding:22px}.byb-rules{grid-template-columns:1fr}.byb-top,.byb-actions{flex-direction:column;align-items:stretch}.headin{flex-wrap:wrap;padding:12px 14px}#identity{font-size:12px;overflow-wrap:anywhere}.sky strong{font-size:30px}.actions{flex-wrap:wrap}.between{gap:12px;flex-wrap:wrap}.stats{grid-template-columns:1fr}.byb-actions .btn{width:100%}}
 form.stack>div:has(>input){display:grid;grid-template-columns:1fr 1fr;gap:15px}
 @media(max-width:760px){.byb-mobile .byb-rules,form.stack>div:has(>input){grid-template-columns:1fr!important}}
+
+.original-image{width:100%;overflow:auto;margin:20px 0;border-radius:16px;background:white}
+.original-image img{display:block;width:100%;height:auto;max-height:none;object-fit:contain}
+.byb-mobile.text-alternative{display:none!important}
+.person-input{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.person-input label{display:grid;gap:7px}
+@media(max-width:760px){.original-image img{min-width:820px}.person-input{grid-template-columns:1fr}}
