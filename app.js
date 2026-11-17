@@ -1,5 +1,5 @@
-import {connect,VERSION} from './firebase-adapter.js?v=18.2';
-import {AssessmentSession,draftKey} from './session.js?v=18.2';
+import {connect,VERSION} from './firebase-adapter.js?v=18.4';
+import {AssessmentSession,draftKey} from './session.js?v=18.4';
 
 const $=id=>document.getElementById(id);
 const config=window.SIXMA_FIREBASE_CONFIG;
@@ -76,7 +76,6 @@ function updateControls() {
     $('optionA').disabled=state.busy||s.completed;
     $('optionB').disabled=state.busy||s.completed;
     $('saveDuring').hidden=s.completed;
-    $('saveExit').hidden=s.completed;
     $('questionNext').disabled=state.busy||!s.answers[state.questions[s.index].id];
     $('completionSave').disabled=state.busy||s.completed;
     $('submitAssessment').disabled=state.busy||s.completed||s.count!==72;
@@ -404,7 +403,6 @@ $('optionB').addEventListener('click',()=>choose('B'));
 $('questionBack').addEventListener('click',previous);
 $('questionNext').addEventListener('click',next);
 $('saveDuring').addEventListener('click',()=>action(()=>save()));
-$('saveExit').addEventListener('click',()=>action(()=>save('save',true)));
 $('completionSave').addEventListener('click',()=>action(()=>save()));
 $('submitAssessment').addEventListener('click',()=>action(()=>save('submit')));
 $('deleteAssessment').addEventListener('click',()=>action(removeAssessment));

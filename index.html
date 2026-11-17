@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Sarabun:wght@400;500;600;700;800&family=Material+Symbols+Outlined:wght@300;400&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./styles.css?v=18.2">
+  <link rel="stylesheet" href="./styles.css?v=18.4">
 </head>
 <body>
   <header class="banner" id="banner">
@@ -78,7 +78,7 @@
         <button id="optionB" class="answer" type="button" aria-pressed="false"><b>B</b><span id="optionBText"></span><span class="answer-check material-symbols-outlined" aria-hidden="true">circle</span></button>
       </div>
       <div class="navigation assessment-navigation"><button id="questionBack" class="outline" type="button">← Back</button><div class="save-group"><span id="saveState" role="status" aria-live="polite"></span><button id="saveDuring" class="outline" type="button"><span class="material-symbols-outlined" aria-hidden="true">save</span> Save</button></div><button id="questionNext" class="primary" type="button">Next →</button></div>
-      <div class="question-detail"><span id="answeredCount">0 / 72 answered</span><button id="saveExit" class="text-button" type="button">Save &amp; Exit</button></div>
+      <div class="question-detail"><span id="answeredCount">0 / 72 answered</span></div>
     </section>
 
     <section id="completionPage" class="page completion" aria-labelledby="completionTitle" hidden>
@@ -103,6 +103,6 @@
     <div class="dialog-actions"><button id="confirmCancel" class="outline" type="button">ยกเลิก</button><button id="confirmAccept" class="primary" type="button">ยืนยัน</button></div>
   </dialog>
   <script src="./firebase-config.js"></script>
-  <script type="module" src="./app.js?v=18.2"></script>
+  <script type="module" src="./app.js?v=18.4"></script>
 </body>
 </html>

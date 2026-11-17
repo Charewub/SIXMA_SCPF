@@ -71,7 +71,12 @@ export async function connect(config) {
       if(method==='getBootstrap') {
         const marker=await f.getDocFromServer(ref('_SIXMA','migration'));
         if(!marker.exists() || marker.data().ready!==true)throw new Error('Database migration is not complete. Contact the administrator.');
-        const [positions,assessments,pairs]=await Promise.all(['POSITIONS','ASSESSMENTS','PAIR_MASTER'].map(list));
+        const [positions,assessmentDocs,pairs]=await Promise.all([
+          list('POSITIONS'),
+          f.getDocsFromServer(f.query(f.collection(db,'ASSESSMENTS'),f.where('created_by','==',actor()))),
+          list('PAIR_MASTER')
+        ]);
+        const assessments=assessmentDocs.docs.map(d=>d.data());
         const questions=pairs.filter(p=>p.questionnaire_version===VERSION).sort((a,b)=>a.pair_no-b.pair_no);
         if(questions.length!==72 || questions.some((p,i)=>p.pair_id!=='LP72-'+String(i+1).padStart(3,'0') || p.qa_status!=='PASS')) {
           throw new Error('Import the SIXMA migration data before opening assessments.');
@@ -85,6 +90,7 @@ export async function connect(config) {
         return f.runTransaction(db,async tx=>{
           const [a,r]=await Promise.all([tx.get(ref('ASSESSMENTS',input.assessment_id)),tx.get(ref('RESPONSES',input.assessment_id))]);
           if(!a.exists() || !r.exists())throw new Error('ASSESSMENT_NOT_FOUND');
+          if(a.data().created_by!==actor())throw new Error('ACCESS_DENIED');
           const answers={};choices(r.data()).forEach((v,i)=>{if(v)answers['LP72-'+String(i+1).padStart(3,'0')]=v;});
           return {assessment:project(a.data()),answers};
         });
@@ -111,7 +117,7 @@ export async function connect(config) {
         const id='ASM-'+input.request_id;
         return f.runTransaction(db,async tx=>{
           const [existing,pos]=await Promise.all([tx.get(ref('ASSESSMENTS',id)),tx.get(ref('POSITIONS',input.position_id))]);
-          if(existing.exists())return project(existing.data());
+          if(existing.exists()){if(existing.data().created_by!==actor())throw new Error('ACCESS_DENIED');return project(existing.data());}
           if(!pos.exists() || String(pos.data().is_active).toUpperCase()!=='TRUE')throw new Error('POSITION_NOT_FOUND_OR_INACTIVE');
           const at=new Date().toISOString(),p=pos.data(),round=Number(p.last_round_no||0)+1;
           const a={assessment_id:id,position_id:input.position_id,position_title_snapshot:p.position_title,
@@ -134,6 +140,7 @@ export async function connect(config) {
             throw new Error('ASSESSMENT_NOT_FOUND');
           }
           const a=as.data(),at=new Date().toISOString();
+          if(a.created_by!==actor())throw new Error('ACCESS_DENIED');
           if(method==='deleteAssessment') {
             if(a.revision!==input.expected_revision)throw new Error('REVISION_CONFLICT_RELOAD_ASSESSMENT');
             tx.delete(ar);tx.delete(rr);audit(tx,input,'delete_assessment',input.assessment_id,at);

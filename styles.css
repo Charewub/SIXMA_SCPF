@@ -463,3 +463,55 @@ fieldset { margin: 0; border: 0; min-width: 0; }
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; transition: none !important; }
 }
+
+/* Side-by-side choices for landscape screens. */
+@media (orientation: landscape) and (min-width: 600px) {
+  .answer-options {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 16px;
+  }
+  .answer-options > .or { display: none; }
+  .answer {
+    display: grid;
+    grid-template-columns: 36px minmax(0, 1fr) 28px;
+    align-content: start;
+    align-items: center;
+    gap: 12px;
+    min-height: 150px;
+  }
+  .answer > b { grid-column: 1; grid-row: 1; }
+  .answer > .answer-check { grid-column: 3; grid-row: 1; margin: 0; }
+  .answer > span:nth-child(2) {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    border: 0;
+    padding: 0;
+  }
+}
+@media (orientation: landscape) and (max-height: 520px) {
+  body:has(#assessmentPage:not([hidden])) .banner { display: none; }
+  body:has(#assessmentPage:not([hidden])) .account-bar { min-height: 27px; margin: 0 0 4px; }
+  .workspace { max-width: 1100px; padding: 0 12px 10px; }
+  #assessmentPage { padding: 12px 16px; }
+  .assessment-brand > .material-symbols-outlined { font-size: 29px; }
+  .assessment-brand h2 { font-size: 18px; }
+  .assessment-brand p { font-size: 10px; }
+  .question-counter { font-size: 13px; padding: 5px 12px; }
+  .progress-track { height: 5px; margin: 8px 0; }
+  .target-line { margin: 7px 0; font-size: 12px; }
+  .target-line > .material-symbols-outlined { font-size: 18px; }
+  .question-prompt { padding: 8px 12px; gap: 10px; margin-bottom: 10px; }
+  .question-prompt > span { width: 27px; height: 27px; font-size: 19px; }
+  .question-prompt h3 { font-size: 15px; line-height: 1.5; padding-left: 12px; }
+  .answer-options { gap: 12px; }
+  .answer { min-height: 112px; padding: 10px 13px; gap: 7px; }
+  .answer > b { width: 28px; height: 28px; font-size: 20px; }
+  .answer > .answer-check { font-size: 23px; }
+  .answer > span:nth-child(2) { font-size: 16px; line-height: 1.5; }
+  .assessment-navigation { margin-top: 10px; }
+  .assessment-navigation button { min-height: 34px; padding: 7px 17px; font-size: 13px; }
+  .question-detail { margin-top: 3px; font-size: 10px; }
+  .question-detail .text-button { font-size: 11px; padding: 3px 0; }
+  .toast { top: 8px; right: 10px; }
+}
