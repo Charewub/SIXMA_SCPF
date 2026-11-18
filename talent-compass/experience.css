@@ -240,3 +240,9 @@ form.stack .actions .btn[data-action="add-person"]{background:#173761;color:whit
 .portrait-journey,.byb-mobile.text-alternative{display:block!important}
 .portrait-journey ul{padding-left:22px}.portrait-journey li{margin:8px 0}
 }
+
+/* Match Portal account menu and keep it within narrow screens. */
+.headin .user-profile{margin-left:auto;min-width:0}
+.headin .user-profile[hidden]{display:none}
+.headin .ui-icon{width:20px;height:20px;vertical-align:middle}
+@media(max-width:480px){.headin{gap:8px}.headin #profileName{max-width:125px}.headin .user-profile summary{gap:7px}.headin .avatar{width:36px;height:36px}}

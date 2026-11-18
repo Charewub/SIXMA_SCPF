@@ -1,3 +1,4 @@
+import {setProfile} from '../profile.js?v=2';
 import * as identitySDK from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
 import {syncUser,tokenIdentity,identityFields,linkLegacy} from '../identity.mjs?v=3';
 import {initializeApp} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js';
@@ -67,7 +68,7 @@ async function call(action) {
     });
   } catch (error) {
     if (error.code === 'permission-denied')
-      throw Error('บัญชีนี้ยังไม่มีสิทธิ์ทำรายการ กรุณาตรวจสิทธิ์ Manager และ Firestore Rules');
+      throw Error('Firestore ปฏิเสธรายการนี้ กรุณาให้ผู้ดูแลตรวจสอบสิทธิ์และเงื่อนไขการบันทึกข้อมูล (permission-denied)');
     throw error;
   }
 }
@@ -112,10 +113,10 @@ const examples = [
 ];
 function personInput(index) {
  const example = examples[index];
- return '<div class="person-input"><label>พนักงาน '+(index+1)+'<input name="name'+index+'" aria-label="ชื่อพนักงานภาษาอังกฤษ" maxlength="150" pattern="[A-Za-z0-9 ]+" title="ใช้ A–Z, a–z, 0–9 และเว้นวรรคระหว่างชื่อ" placeholder="'+example.name+'" required></label><label>Employee ID<input name="emp'+index+'" aria-label="รหัสพนักงาน" type="text" inputmode="numeric" maxlength="100" pattern="1[0-9]*" title="ตัวเลขเท่านั้น" placeholder="'+example.code+'" required></label></div>';
+ return '<div class="person-input"><label>พนักงาน '+(index+1)+'<input name="name'+index+'" aria-label="ชื่อพนักงานภาษาอังกฤษ" maxlength="150" pattern="[A-Za-z0-9 ]+" title="ใช้ A–Z, a–z, 0–9 และเว้นวรรคระหว่างชื่อ" placeholder="'+example.name+'" required></label><label>Employee ID<input name="emp'+index+'" aria-label="รหัสพนักงาน" type="text" maxlength="100" pattern="[A-Za-z0-9]+" placeholder="'+example.code+'" required></label></div>';
 }
 function create() {
- root.innerHTML = '<form class="card stack"><h2>สร้างการประเมินใหม่</h2><p class="muted">เลือก Pathway และกรอกชื่อพนักงาน 3–5 คน</p><label>Department <input required name="dept" value="" placeholder="กรอกแผนก"></label><label>Assessment Period <input required name="period" placeholder="เช่น 2026 H2"></label><label>Talent Pathway <select name="path"><option value="manager">Supervisor | Team Leader → Assistant Manager | Manager</option><option value="director">Manager | Senior Manager → HOD</option></select></label><h3>รายชื่อพนักงาน</h3><p class="muted">กรอกชื่อภาษาอังกฤษและรหัสพนักงาน (ตัวเลขเท่านั้น)</p><div id="personInputs" class="stack">'+[0,1,2].map(personInput).join('')+'</div><div class="actions">'+button('add-person','+ เพิ่มชื่อ (สูงสุด 5)')+button('remove-person','− ลบชื่อสุดท้าย')+'</div><div class="info">ระบบจะบันทึกเป็น Draft ทันทีเมื่อสร้างรายการ และสามารถกลับมาทำต่อได้</div><button class="btn primary">สร้างและเริ่มประเมิน</button></form>'+button('home','กลับ');
+ root.innerHTML = '<form class="card stack"><h2>สร้างการประเมินใหม่</h2><p class="muted">เลือก Pathway และกรอกชื่อพนักงาน 3–5 คน</p><label>Department <input required name="dept" value="" placeholder="กรอกแผนก"></label><label>Assessment Period <input required name="period" placeholder="เช่น 2026 H2"></label><label>Talent Pathway <select name="path"><option value="manager">Supervisor | Team Leader → Assistant Manager | Manager</option><option value="director">Manager | Senior Manager → HOD</option></select></label><h3>รายชื่อพนักงาน</h3><p class="muted">กรอกชื่อภาษาอังกฤษและรหัสพนักงาน</p><div id="personInputs" class="stack">'+[0,1,2].map(personInput).join('')+'</div><div class="actions">'+button('add-person','+ เพิ่มชื่อ (สูงสุด 5)')+button('remove-person','− ลบชื่อสุดท้าย')+'</div><div class="info">ระบบจะบันทึกเป็น Draft ทันทีเมื่อสร้างรายการ และสามารถกลับมาทำต่อได้</div><button class="btn primary">สร้างและเริ่มประเมิน</button></form>'+button('home','กลับ');
  root.querySelector('[data-action="remove-person"]').disabled = true;
 }
 function updatePeople(action) {
@@ -139,12 +140,14 @@ function question() {
 function summary(){const a=TALENT_ADVISORY[box];root.innerHTML='<p class="eyebrow">บันทึกผลแล้ว</p><h1>Talent Summary</h1>'+button('home','กลับหน้ารายการ')+'<div class="summary-grid"><section class="card"><h2>ภาพรวม 9-Box</h2><p>Performance → · Potential ↑</p><div class="nine"><span></span>'+['Low','Moderate','High'].map(v=>'<b>'+v+'</b>').join('')+[2,1,0].map(y=>'<b>'+label(y)+'</b>'+GROUPS[y].map((g,x)=>'<button class="mapcell summary-cell tone-'+x+y+' '+(g===box?'selected':'')+'" data-box="'+g+'"><strong>'+g+'</strong>'+record.people.filter(p=>record.results.find(r=>r.id===p.id).box===g).map(p=>'<span class="mapchip">'+esc(p.name)+'</span>').join('')+'</button>').join('')).join('')+'</div></section><section class="card"><h2>'+box+'</h2>'+record.people.filter(p=>record.results.find(r=>r.id===p.id).box===box).map(p=>{const r=record.results.find(r=>r.id===p.id);return '<p>'+esc(p.name)+' · Performance '+r.px.toFixed(2)+' · Potential '+r.py.toFixed(2)+'</p>';}).join('')+[['Talent Interpretation',a.interpretation],['Placement Recommendation — Why & When to Select',a.placement],['Talent Development',a.development],['Succession Recommendation',a.succession+' — '+a.successionDetail]].map(([h,t])=>'<section class="summary-dev"><h3>'+h+'</h3><p>'+esc(t)+'</p></section>').join('')+'</section></div>';}
 async function run(fn){if(root.inert)return;root.inert=true;msg.textContent='';try{await fn();}catch(e){msg.textContent=e.message;}finally{root.inert=false;}}
 root.onsubmit=e=>{e.preventDefault();const f=new FormData(e.target);run(async()=>{const people=[];for(let i=0;i<5;i++){const name=(f.get('name'+i)||'').trim(),empId=(f.get('emp'+i)||'').trim();if(name||empId){
-if(!name || !/^1[0-9]*$/.test(empId) || !/^[A-Za-z0-9 ]+$/.test(name))throw Error('กรอกชื่อภาษาอังกฤษและรหัสพนักงาน (ตัวเลขเท่านั้น) ให้ครบ');
+if(!name || !/^[A-Za-z0-9]+$/.test(empId) || !/^[A-Za-z0-9 ]+$/.test(name))throw Error('กรอกชื่อภาษาอังกฤษและรหัสพนักงาน ให้ครบ');
 people.push({id:'p'+people.length,name,empId});
 }}if(people.length<3 || people.length>5)throw Error('กรุณาระบุพนักงาน 3–5 คน');id=crypto.randomUUID();record={revision:0,department:f.get('dept'),period:f.get('period'),path:f.get('path'),people,answers:{}};record=await call('save');page=0;question();});};
 root.onclick=e=>{const b=e.target.closest('button');if(!b||!b.dataset.action&&!b.dataset.rate&&!b.dataset.box)return;run(async()=>{const action=b.dataset.action;if(b.dataset.rate){const q=Q[page],old=record;record={...old,answers:{...old.answers,[q.id]:{...old.answers[q.id],[b.dataset.rate]:Number(b.dataset.v)}}};try{record=await call('save');}catch(err){record=old;throw err;}question();return;}if(b.dataset.box){box=b.dataset.box;summary();return;}if(action==='login')await signInWithPopup(auth,new GoogleAuthProvider());if(action==='logout')await signOut(auth);if(action==='home')await home();if(action==='add-person'||action==='remove-person')updatePeople(action);if(action==='welcome')welcome();if(action==='guide'||action==='new')guide();if(action==='begin'&&document.getElementById('bybConsent')?.checked)create();if(action?.startsWith('open-')){id=action.slice(5);record=await call('get');if(record.status==='FINAL'){box=record.results[0].box;summary();}else{page=Q.findIndex(q=>record.people.some(p=>!record.answers[q.id]?.[p.id]));if(page<0)page=29;question();}}if(action==='prev'){page--;question();}if(action==='next'||action==='finish'){if(record.people.some(p=>!record.answers[Q[page].id]?.[p.id]))throw Error('กรุณาประเมินทุกคนในข้อนี้');if(action==='next'){page++;question();}else{record=await call('finish');box=record.results[0].box;summary();}}});};
-onAuthStateChanged(auth,async user=>{root.innerHTML='';msg.textContent='';record=null;id=null;document.querySelector('#identity').textContent=user?.email||'';if(!user){root.innerHTML='<section class="card"><h1>Talent Compass</h1>'+button('login','เข้าสู่ระบบด้วยบัญชี Google บริษัท')+'</section>';return;}try{await syncUser(identitySDK,db,user);await call('list');welcome();}catch(e){msg.textContent=e.message;root.innerHTML=button('logout','ออกจากระบบ');}});
+onAuthStateChanged(auth,async user=>{root.innerHTML='';msg.textContent='';record=null;id=null;document.querySelector('#userProfile').hidden=!user;setProfile(user);document.querySelector('#portalEmail').textContent=user?.email||'';if(!user){root.innerHTML='<section class="card"><h1>Talent Compass</h1>'+button('login','เข้าสู่ระบบด้วยบัญชี Google บริษัท')+'</section>';return;}try{await syncUser(identitySDK,db,user);await call('list');welcome();}catch(e){msg.textContent=e.message;root.innerHTML=button('logout','ออกจากระบบ');}});
 
 root.addEventListener('change', event => {
  if(event.target.id === 'bybConsent') document.getElementById('bybContinue').disabled = !event.target.checked;
 });
+
+document.querySelector('#portalSignOut').addEventListener('click',()=>run(()=>signOut(auth)));
