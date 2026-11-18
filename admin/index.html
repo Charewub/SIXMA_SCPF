@@ -16,10 +16,10 @@
 <div id="selectionbar" class="selectionbar" hidden><strong id="selected-count"></strong><button id="clear-selection" class="secondary">ยกเลิกการเลือก</button><button id="delete-selected" class="danger-outline">ลบรายการที่เลือก</button></div><p class="muted">เลือกทั้งหมดเฉพาะรายการที่โหลดแล้วและตรงกับตัวกรอง</p><p id="coverage" class="muted"></p>
 <div class="table-wrap"><table><thead><tr><th><input type="checkbox" id="select-all" aria-label="เลือกทุกรายการที่โหลดแล้วและตรงตัวกรอง"></th><th>ระบบ / รายการ</th><th>ผู้ประเมิน</th><th>รอบ / ช่วงเวลา</th><th>สถานะ</th><th>อัปเดต</th><th>รายละเอียด</th></tr></thead><tbody id="rows"></tbody></table></div>
 <div class="toolbar"><p id="count" class="muted"></p><button id="more" class="secondary">โหลดเพิ่ม</button></div></section>
-<p class="muted">SIXMA แสดง UID ผู้ประเมินตามข้อมูลเดิม · Talent Compass ค้นหาชื่อและรหัสพนักงานได้ · ตัวกรองวันที่ใช้เวลาไทย</p>
+<p class="muted">SIXMA รายการเก่าที่ยังไม่เชื่อมข้อมูลแสดง UID · Talent Compass ค้นหาชื่อและรหัสพนักงานได้ · ตัวกรองวันที่ใช้เวลาไทย</p>
 </div>
 </main>
 <dialog id="detail"><div class="toolbar"><h2>รายละเอียดการประเมิน</h2><button id="close" class="secondary">ปิด</button></div><div id="detail-body"></div><div class="toolbar"><button id="download-detail">ดาวน์โหลดรายละเอียด JSON</button><button id="print" class="secondary">พิมพ์ / บันทึก PDF</button></div></dialog>
 <dialog id="delete-dialog"><h2 id="delete-title">ยืนยันการลบ</h2><p>รายการและคำตอบที่เลือกจะถูกลบถาวร รวมถึงรายการที่ยืนยันผลแล้ว</p><p>Talent Compass หนึ่งรายการรวมพนักงานทุกคนในรายการนั้น</p><ul id="delete-list"></ul><p id="delete-error" role="alert"></p><div class="toolbar"><button id="delete-cancel" class="secondary">ยกเลิก</button><button id="delete-confirm" class="danger">ยืนยันการลบ</button></div></dialog><script src="../firebase-config.js"></script><script src="../talent-compass/model.js"></script>
-<script type="module">import('./app.js?v=2').catch(()=>{document.getElementById('message').textContent='โหลดหน้า Admin ไม่สำเร็จ กรุณาตรวจการเชื่อมต่อและรีเฟรชหน้า';});</script>
+<script type="module">import('./app.js?v=3').catch(()=>{document.getElementById('message').textContent='โหลดหน้า Admin ไม่สำเร็จ กรุณาตรวจการเชื่อมต่อและรีเฟรชหน้า';});</script>
 </body></html>

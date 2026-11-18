@@ -3,7 +3,7 @@ import {deleteRecord} from './delete.mjs';
 import {initializeApp} from 'https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js';
 import {getAuth,onAuthStateChanged,GoogleAuthProvider,signInWithPopup,signOut} from 'https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js';
 import {getFirestore,collection,collectionGroup,query,orderBy,documentId,limit,startAfter,getDocsFromServer,getDocFromServer,doc,runTransaction} from 'https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js';
-import {isAdmin,escapeHTML as esc,normalize,filterRows,csv,exportRows} from './core.mjs';
+import {isAdmin,escapeHTML as esc,normalize,filterRows,csv,exportRows} from './core.mjs?v=3';
 const $=id=>document.getElementById(id);
 const auth=getAuth(initializeApp(window.SIXMA_FIREBASE_CONFIG)),db=getFirestore();
 const PAGE=100;
@@ -23,7 +23,7 @@ function render() {
  for(const path of checked)if(!visible.some(r=>r.path===path))checked.delete(path);
  visible.sort((a,b)=>String(b.updated||'').localeCompare(String(a.updated||'')));
  $('stats').innerHTML=[['รายการที่ตรงตัวกรอง',visible.length],['ยังไม่ยืนยันผล',visible.filter(r=>!r.final).length],['ยืนยันผลแล้ว',visible.filter(r=>r.final).length],['รายชื่อใน Talent Compass',visible.reduce((n,r)=>n+r.people.length,0)]].map(([l,n])=>'<div class="stat"><small>'+l+'</small><strong>'+n+'</strong></div>').join('');
- $('rows').innerHTML=visible.map((r,i)=>'<tr class="'+(checked.has(r.path)?'selected':'')+'"><td><input type="checkbox" data-select="'+i+'" aria-label="เลือกรายการ '+esc(r.title)+'" '+(checked.has(r.path)?'checked':'')+'></td><td><b><span class="row-icon '+r.system+'">'+(r.system==='tc'?'◇':'▱')+'</span>'+esc(r.title)+'</b><small>'+label(r)+'</small></td><td>'+esc(r.owner||'—')+'</td><td>'+esc(r.period||'—')+'</td><td><span class="pill '+(r.final?'final':'')+'">'+esc(r.status)+'</span></td><td>'+esc(date(r.updated))+'</td><td><button class="secondary" data-open="'+i+'">เปิดดู</button></td></tr>').join('')||'<tr><td colspan="7">'+(invalid?'วันที่เริ่มต้นต้องไม่เกินวันที่สิ้นสุด':'ไม่พบรายการในข้อมูลที่โหลดแล้ว')+'</td></tr>';
+ $('rows').innerHTML=visible.map((r,i)=>'<tr class="'+(checked.has(r.path)?'selected':'')+'"><td><input type="checkbox" data-select="'+i+'" aria-label="เลือกรายการ '+esc(r.title)+'" '+(checked.has(r.path)?'checked':'')+'></td><td><b><span class="row-icon '+r.system+'">'+(r.system==='tc'?'◇':'▱')+'</span>'+esc(r.title)+'</b><small>'+label(r)+'</small></td><td>'+esc(r.ownerName||r.owner||'—')+(r.ownerName?'<small>'+esc(r.owner||'')+'</small>':'')+(r.identitySource==='linked'?'<small>เชื่อมข้อมูลเมื่อเจ้าของเข้าใช้งาน</small>':'')+'</td><td>'+esc(r.period||'—')+'</td><td><span class="pill '+(r.final?'final':'')+'">'+esc(r.status)+'</span></td><td>'+esc(date(r.updated))+'</td><td><button class="secondary" data-open="'+i+'">เปิดดู</button></td></tr>').join('')||'<tr><td colspan="7">'+(invalid?'วันที่เริ่มต้นต้องไม่เกินวันที่สิ้นสุด':'ไม่พบรายการในข้อมูลที่โหลดแล้ว')+'</td></tr>';
  const complete=Object.values(sources).every(s=>s.done);
  $('coverage').textContent='โหลดแล้ว '+all.length+' รายการ · '+(complete?'โหลดครบทั้งสองระบบ ณ เวลาที่อ่านข้อมูล':'ยังโหลดไม่ครบ — ยอดรวม การค้นหา และ CSV ครอบคลุมเฉพาะข้อมูลที่โหลดแล้ว');
  $('count').textContent='แสดง '+visible.length+' รายการ';
@@ -72,7 +72,7 @@ async function openDetail(row) {
   if(ticket!==epoch||request!==detailRequest||!$('detail').open)return;
   if(!snap.exists())throw Error('ไม่พบรายการนี้แล้ว');
   const r=normalize(row.system,row.id,snap.data(),row.path),d=r.data;
-  let html='<h2>'+esc(label(r))+'</h2>'+fields([['รายการ',r.id],['สถานะ',r.status],['ผู้ประเมิน',r.owner],['ตำแหน่ง / หน่วยงาน',r.title],['รอบ / ช่วงเวลา',r.period],['อัปเดต',date(r.updated)]]);
+  let html='<h2>'+esc(label(r))+'</h2>'+fields([['รายการ',r.id],['สถานะ',r.status],['ผู้ประเมิน',r.ownerName||r.owner],['อีเมล / UID',r.owner],['UID เจ้าของ',r.ownerUid],['ที่มาข้อมูลผู้ประเมิน',r.identitySource==='created'?'บันทึกเมื่อสร้างรายการ':r.identitySource==='linked'?'เชื่อมกับบัญชีเจ้าของภายหลัง (ไม่ใช่ชื่อย้อนหลัง ณ วันสร้าง)':'รายการเดิม ยังไม่เชื่อมข้อมูล'],['ตำแหน่ง / หน่วยงาน',r.title],['รอบ / ช่วงเวลา',r.period],['อัปเดต',date(r.updated)]]);
   let response=null;
   if(r.system==='tc') {
    html+=fields([['Pathway',d.path],['Bank / Scoring version',(d.bankVersion||'')+' / '+(d.scoringVersion||'')]]);

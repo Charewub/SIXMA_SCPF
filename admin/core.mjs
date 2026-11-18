@@ -10,7 +10,9 @@ export function dateKey(v) {
 export function normalize(system,id,data,path) {
  const tc=system==='tc';
  return {system,id,path,data,title:tc?(data.department||'ไม่ระบุหน่วยงาน'):(data.position_title_snapshot||id),
- owner:tc?data.owner:data.created_by,status:data.status||'ไม่ระบุ',final:tc?data.status==='FINAL':data.status==='Completed',
+ owner:tc?data.owner:(data.created_by_email||data.created_by),
+ ownerUid:tc?(data.owner_uid||''):data.created_by,ownerName:data.created_by_name||'',
+ identitySource:data.identity_source||'',status:data.status||'ไม่ระบุ',final:tc?data.status==='FINAL':data.status==='Completed',
  updated:tc?data.updated:data.updated_at,period:tc?data.period:String(data.round_no??''),
  people:tc && Array.isArray(data.people)?data.people:[]};
 }
@@ -18,7 +20,7 @@ export function filterRows(rows,f) {
  const q=(f.search||'').trim().toLowerCase();
  return rows.filter(r=>(!f.system||r.system===f.system)&&(!f.status||(f.status==='final'?r.final:!r.final))
  &&(!f.from||dateKey(r.updated)>=f.from)&&(!f.to||!!dateKey(r.updated)&&dateKey(r.updated)<=f.to)
- &&[r.id,r.title,r.owner,r.period,...r.people.flatMap(p=>[p.name,p.empId])].join(' ').toLowerCase().includes(q));
+ &&[r.id,r.title,r.owner,r.ownerName,r.ownerUid,r.period,...r.people.flatMap(p=>[p.name,p.empId])].join(' ').toLowerCase().includes(q));
 }
 export function csvCell(v) {
  let s=String(v??'');
@@ -27,10 +29,10 @@ export function csvCell(v) {
 }
 export const csv = rows => '\uFEFF'+rows.map(r=>r.map(csvCell).join(',')).join('\r\n');
 export function exportRows(rows) {
- const result=[['System','Assessment ID','Status','Assessor email / UID','Position / Department','Period / Round','Updated','Employee name','Employee ID','Performance','Potential','9-Box']];
+ const result=[['System','Assessment ID','Status','Assessor email / UID','Position / Department','Period / Round','Updated','Employee name','Employee ID','Performance','Potential','9-Box','Assessor name','Assessor UID','Identity source']];
  for(const r of rows) for(const p of r.people.length?r.people:[{}]) {
   const score=r.final?r.data.results?.find(x=>x.id===p.id):null;
-  result.push([r.system==='tc'?'Talent Compass':'SIXMA',r.id,r.status,r.owner,r.title,r.period,r.updated,p.name,p.empId,score?.px,score?.py,score?.box]);
+  result.push([r.system==='tc'?'Talent Compass':'SIXMA',r.id,r.status,r.owner,r.title,r.period,r.updated,p.name,p.empId,score?.px,score?.py,score?.box,r.ownerName,r.ownerUid,r.identitySource]);
  }
  return result;
 }
