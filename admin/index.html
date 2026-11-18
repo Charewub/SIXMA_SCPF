@@ -1,25 +1,25 @@
 <!doctype html>
 <html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>ALLSTAR · Admin</title><link rel="stylesheet" href="./admin.css?v=1"></head>
-<body><header><a class="brand" href="../">ALLSTAR<span>ASSESSMENT PLATFORM</span></a><nav><a href="../">⌂ Home</a><span id="identity"></span><button id="signout" hidden>ออกจากระบบ</button></nav></header>
-<main><div class="heading"><div><p class="eyebrow">ADMIN WORKSPACE</p><h1>ภาพรวมการประเมิน</h1><p>ดูรายการและผลประเมินจากทุกระบบในที่เดียว</p></div><span class="badge">สิทธิ์อ่านและส่งออกข้อมูล</span></div>
+<title>ALLSTAR · Admin</title><link rel="stylesheet" href="./admin.css?v=2"><link rel="stylesheet" href="../profile.css?v=2"></head>
+<body><header><a class="brand" href="../">ALLSTAR<span>ASSESSMENT PLATFORM</span></a><details class="user-profile" id="userProfile"><summary aria-label="เปิดเมนูโปรไฟล์"><span class="avatar"><img id="profilePhoto" alt="" hidden><span id="profileInitial">G</span></span><span id="profileName">บัญชีผู้ใช้</span><span aria-hidden="true">⌄</span></summary><div class="profile-menu"><span class="profile-email" id="identity"></span><a id="profileAdmin" href="../admin/" hidden>◇ &nbsp; Admin<small>ภาพรวมและผลประเมิน</small></a><a href="../">⌂ &nbsp; Home</a><button id="signout" type="button">ออกจากระบบ</button></div></details></header>
+<aside class="sidebar"><p>ADMIN WORKSPACE</p><a href="#overview" class="active">▦ &nbsp; ภาพรวม</a><a href="#assessment-list">☷ &nbsp; รายการประเมิน</a><a class="home-link" href="../">⌂ &nbsp; กลับหน้า Portal</a></aside><main id="overview"><div class="heading"><div><p class="eyebrow">ADMIN WORKSPACE</p><h1>ภาพรวมการประเมิน</h1><p>ดูรายการและผลประเมินจากทุกระบบในที่เดียว</p></div><span class="badge">Admin · ดู ส่งออก และลบรายการ</span></div>
 <div id="message" role="status" aria-live="polite">กำลังตรวจสอบบัญชี…</div>
 <section id="gate" class="card" hidden><h2>เข้าสู่ระบบ Admin</h2><p>ใช้บัญชี Google ที่ได้รับสิทธิ์ Admin</p><button id="login">เข้าสู่ระบบด้วย Google</button></section>
 <div id="workspace" hidden>
 <section class="stats" id="stats"></section>
-<section class="card"><div class="toolbar"><h2>รายการประเมิน</h2><div><button id="refresh" class="secondary">โหลดข้อมูลใหม่</button> <button id="export">ส่งออก CSV</button></div></div>
-<div class="filters">
-<label>ระบบ<select id="system"><option value="">ทุกระบบ</option><option value="sixma">SIXMA Success Profile</option><option value="tc">Talent Compass</option></select></label>
+<section class="card" id="assessment-list"><div class="toolbar"><h2>รายการประเมิน</h2><div><button id="refresh" class="secondary">โหลดข้อมูลใหม่</button> <button id="export">ส่งออก CSV</button></div></div>
+<div class="system-tabs" role="group" aria-label="เลือกระบบ"><button data-system="" aria-pressed="true">ทุกระบบ</button><button data-system="sixma" aria-pressed="false">SIXMA</button><button data-system="tc" aria-pressed="false">Talent Compass</button></div><div class="filters">
+<label hidden>ระบบ<select id="system"><option value="">ทุกระบบ</option><option value="sixma">SIXMA Success Profile</option><option value="tc">Talent Compass</option></select></label>
 <label>สถานะ<select id="status"><option value="">ทุกสถานะ</option><option value="draft">ยังไม่ยืนยันผล</option><option value="final">ยืนยันผลแล้ว</option></select></label>
 <label>อัปเดตตั้งแต่<input type="date" id="from"></label><label>ถึงวันที่<input type="date" id="to"></label>
 <label class="search">ค้นหา<input type="search" id="search" placeholder="ชื่อ / รหัสพนักงาน / ตำแหน่ง / ผู้ประเมิน / รอบ"></label></div>
-<p id="coverage" class="muted"></p>
-<div class="table-wrap"><table><thead><tr><th>ระบบ / รายการ</th><th>ผู้ประเมิน</th><th>รอบ / ช่วงเวลา</th><th>สถานะ</th><th>อัปเดต</th><th>รายละเอียด</th></tr></thead><tbody id="rows"></tbody></table></div>
+<div id="selectionbar" class="selectionbar" hidden><strong id="selected-count"></strong><button id="clear-selection" class="secondary">ยกเลิกการเลือก</button><button id="delete-selected" class="danger-outline">ลบรายการที่เลือก</button></div><p class="muted">เลือกทั้งหมดเฉพาะรายการที่โหลดแล้วและตรงกับตัวกรอง</p><p id="coverage" class="muted"></p>
+<div class="table-wrap"><table><thead><tr><th><input type="checkbox" id="select-all" aria-label="เลือกทุกรายการที่โหลดแล้วและตรงตัวกรอง"></th><th>ระบบ / รายการ</th><th>ผู้ประเมิน</th><th>รอบ / ช่วงเวลา</th><th>สถานะ</th><th>อัปเดต</th><th>รายละเอียด</th></tr></thead><tbody id="rows"></tbody></table></div>
 <div class="toolbar"><p id="count" class="muted"></p><button id="more" class="secondary">โหลดเพิ่ม</button></div></section>
 <p class="muted">SIXMA แสดง UID ผู้ประเมินตามข้อมูลเดิม · Talent Compass ค้นหาชื่อและรหัสพนักงานได้ · ตัวกรองวันที่ใช้เวลาไทย</p>
 </div>
 </main>
 <dialog id="detail"><div class="toolbar"><h2>รายละเอียดการประเมิน</h2><button id="close" class="secondary">ปิด</button></div><div id="detail-body"></div><div class="toolbar"><button id="download-detail">ดาวน์โหลดรายละเอียด JSON</button><button id="print" class="secondary">พิมพ์ / บันทึก PDF</button></div></dialog>
-<script src="../firebase-config.js"></script><script src="../talent-compass/model.js"></script>
-<script type="module">import('./app.js?v=1').catch(()=>{document.getElementById('message').textContent='โหลดหน้า Admin ไม่สำเร็จ กรุณาตรวจการเชื่อมต่อและรีเฟรชหน้า';});</script>
+<dialog id="delete-dialog"><h2 id="delete-title">ยืนยันการลบ</h2><p>รายการและคำตอบที่เลือกจะถูกลบถาวร รวมถึงรายการที่ยืนยันผลแล้ว</p><p>Talent Compass หนึ่งรายการรวมพนักงานทุกคนในรายการนั้น</p><ul id="delete-list"></ul><p id="delete-error" role="alert"></p><div class="toolbar"><button id="delete-cancel" class="secondary">ยกเลิก</button><button id="delete-confirm" class="danger">ยืนยันการลบ</button></div></dialog><script src="../firebase-config.js"></script><script src="../talent-compass/model.js"></script>
+<script type="module">import('./app.js?v=2').catch(()=>{document.getElementById('message').textContent='โหลดหน้า Admin ไม่สำเร็จ กรุณาตรวจการเชื่อมต่อและรีเฟรชหน้า';});</script>
 </body></html>

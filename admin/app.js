@@ -1,12 +1,16 @@
+import {setProfile} from '../profile.js?v=2';
+import {deleteRecord} from './delete.mjs';
 import {initializeApp} from 'https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js';
 import {getAuth,onAuthStateChanged,GoogleAuthProvider,signInWithPopup,signOut} from 'https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js';
-import {getFirestore,collection,collectionGroup,query,orderBy,documentId,limit,startAfter,getDocsFromServer,getDocFromServer,doc} from 'https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js';
+import {getFirestore,collection,collectionGroup,query,orderBy,documentId,limit,startAfter,getDocsFromServer,getDocFromServer,doc,runTransaction} from 'https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js';
 import {isAdmin,escapeHTML as esc,normalize,filterRows,csv,exportRows} from './core.mjs';
 const $=id=>document.getElementById(id);
 const auth=getAuth(initializeApp(window.SIXMA_FIREBASE_CONFIG)),db=getFirestore();
 const PAGE=100;
 let all=[],visible=[],sources={},epoch=0,busy=false,selected=null,questions=null;
 let detailRequest=0;
+const checked=new Set();
+let deleting=false, pendingDeletes=[];
 const label=r=>r.system==='tc'?'Talent Compass':'SIXMA Success Profile';
 const date=v=>{const d=v?.toDate?v.toDate():new Date(v);return v&&!isNaN(+d)?d.toLocaleString('th-TH',{timeZone:'Asia/Bangkok'}):'—';};
 const reportError=e=> e.code==='permission-denied'?'ไม่มีสิทธิ์อ่านข้อมูล กรุณา Publish Firestore Rules ชุด Admin และตรวจบัญชีที่ใช้':
@@ -16,21 +20,29 @@ function render() {
  const f=Object.fromEntries(['system','status','search','from','to'].map(k=>[k,$(k).value]));
  const invalid=f.from&&f.to&&f.from>f.to;
  visible=invalid?[]:filterRows(all,f);
+ for(const path of checked)if(!visible.some(r=>r.path===path))checked.delete(path);
  visible.sort((a,b)=>String(b.updated||'').localeCompare(String(a.updated||'')));
  $('stats').innerHTML=[['รายการที่ตรงตัวกรอง',visible.length],['ยังไม่ยืนยันผล',visible.filter(r=>!r.final).length],['ยืนยันผลแล้ว',visible.filter(r=>r.final).length],['รายชื่อใน Talent Compass',visible.reduce((n,r)=>n+r.people.length,0)]].map(([l,n])=>'<div class="stat"><small>'+l+'</small><strong>'+n+'</strong></div>').join('');
- $('rows').innerHTML=visible.map((r,i)=>'<tr><td><b>'+label(r)+'</b><small>'+esc(r.title)+'</small><small>'+esc(r.id)+'</small></td><td>'+esc(r.owner||'—')+'</td><td>'+esc(r.period||'—')+'</td><td><span class="pill '+(r.final?'final':'')+'">'+esc(r.status)+'</span></td><td>'+esc(date(r.updated))+'</td><td><button class="secondary" data-open="'+i+'">เปิดดู</button></td></tr>').join('')||'<tr><td colspan="6">'+(invalid?'วันที่เริ่มต้นต้องไม่เกินวันที่สิ้นสุด':'ไม่พบรายการในข้อมูลที่โหลดแล้ว')+'</td></tr>';
+ $('rows').innerHTML=visible.map((r,i)=>'<tr class="'+(checked.has(r.path)?'selected':'')+'"><td><input type="checkbox" data-select="'+i+'" aria-label="เลือกรายการ '+esc(r.title)+'" '+(checked.has(r.path)?'checked':'')+'></td><td><b><span class="row-icon '+r.system+'">'+(r.system==='tc'?'◇':'▱')+'</span>'+esc(r.title)+'</b><small>'+label(r)+'</small></td><td>'+esc(r.owner||'—')+'</td><td>'+esc(r.period||'—')+'</td><td><span class="pill '+(r.final?'final':'')+'">'+esc(r.status)+'</span></td><td>'+esc(date(r.updated))+'</td><td><button class="secondary" data-open="'+i+'">เปิดดู</button></td></tr>').join('')||'<tr><td colspan="7">'+(invalid?'วันที่เริ่มต้นต้องไม่เกินวันที่สิ้นสุด':'ไม่พบรายการในข้อมูลที่โหลดแล้ว')+'</td></tr>';
  const complete=Object.values(sources).every(s=>s.done);
  $('coverage').textContent='โหลดแล้ว '+all.length+' รายการ · '+(complete?'โหลดครบทั้งสองระบบ ณ เวลาที่อ่านข้อมูล':'ยังโหลดไม่ครบ — ยอดรวม การค้นหา และ CSV ครอบคลุมเฉพาะข้อมูลที่โหลดแล้ว');
  $('count').textContent='แสดง '+visible.length+' รายการ';
+ $('select-all').checked=visible.length>0&&checked.size===visible.length;
+ $('select-all').indeterminate=checked.size>0&&checked.size<visible.length;
+ $('select-all').disabled=busy||deleting||!visible.length;
+ $('selectionbar').hidden=!checked.size;
+ $('selected-count').textContent='เลือกแล้ว '+checked.size+' รายการ';
+ $('delete-selected').textContent='ลบรายการที่เลือก ('+checked.size+')';
+ $('delete-selected').disabled=busy||deleting;
  $('more').hidden=complete;
  $('more').disabled=busy;
  $('export').disabled=busy||!visible.length;
 }
 async function load(reset=false) {
- if(busy||!isAdmin(auth.currentUser))return;
+ if(busy||deleting||!isAdmin(auth.currentUser))return;
  busy=true;const ticket=epoch;
  $('message').textContent='กำลังอ่านข้อมูล…';$('refresh').disabled=true;
- if(reset){all=[];sources={sixma:{done:false},tc:{done:false}};selected=null;}
+ if(reset){checked.clear();all=[];sources={sixma:{done:false},tc:{done:false}};selected=null;}
  render();
  const outcomes=await Promise.allSettled(Object.entries(sources).filter(([,s])=>!s.done).map(async([system,s])=>{
   const base=system==='sixma'?collection(db,'ASSESSMENTS'):collectionGroup(db,'assessments');
@@ -99,7 +111,7 @@ async function openDetail(row) {
  } catch(e){if(ticket===epoch&&request===detailRequest)$('detail-body').textContent=reportError(e);}
 }
 onAuthStateChanged(auth,user=>{
- epoch++;busy=false;all=[];selected=null;questions=null;
+ epoch++;busy=false;checked.clear();setProfile(user);$('delete-dialog').close();all=[];selected=null;questions=null;
  $('detail').close();$('detail-body').replaceChildren();$('rows').replaceChildren();$('stats').replaceChildren();
  $('workspace').hidden=true;$('identity').textContent=user?.email||'';$('signout').hidden=!user;$('gate').hidden=!!user;
  if(!user){$('message').textContent='กรุณาเข้าสู่ระบบ';return;}
@@ -109,7 +121,49 @@ onAuthStateChanged(auth,user=>{
 $('login').onclick=async()=>{try{const p=new GoogleAuthProvider();p.setCustomParameters({prompt:'select_account'});await signInWithPopup(auth,p);}catch(e){$('message').textContent=reportError(e);}};
 $('signout').onclick=()=>signOut(auth).catch(e=>$('message').textContent=reportError(e));
 $('refresh').onclick=()=>load(true);$('more').onclick=()=>load();
-for(const key of ['system','status','search','from','to'])$(key).addEventListener('input',render);
+for(const key of ['system','status','search','from','to'])$(key).addEventListener('input',()=>{checked.clear();render();});
+document.querySelectorAll('[data-system]').forEach(b=>b.onclick=()=>{
+ if(deleting)return;
+ $('system').value=b.dataset.system;checked.clear();
+ document.querySelectorAll('[data-system]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));
+ render();
+});
+$('rows').addEventListener('change',e=>{
+ if(!e.target.matches('[data-select]')||deleting)return;
+ const row=visible[Number(e.target.dataset.select)];
+ if(e.target.checked)checked.add(row.path);else checked.delete(row.path);render();
+});
+$('select-all').onchange=e=>{checked.clear();if(e.target.checked)visible.forEach(r=>checked.add(r.path));render();};
+$('clear-selection').onclick=()=>{checked.clear();render();};
+$('delete-selected').onclick=()=>{
+ if(deleting||!isAdmin(auth.currentUser))return;
+ pendingDeletes=visible.filter(r=>checked.has(r.path));if(!pendingDeletes.length)return;
+ $('delete-title').textContent='ยืนยันการลบ '+pendingDeletes.length+' รายการ';
+ $('delete-list').innerHTML=pendingDeletes.map(r=>'<li>'+esc(label(r)+' · '+r.title+' · '+r.id)+'</li>').join('');
+ $('delete-error').textContent='';$('delete-dialog').showModal();
+};
+$('delete-cancel').onclick=()=>$('delete-dialog').close();
+$('delete-dialog').addEventListener('cancel',e=>{if(deleting)e.preventDefault();});
+$('delete-confirm').onclick=async()=>{
+ if(deleting||!pendingDeletes.length||!isAdmin(auth.currentUser))return;
+ deleting=true;const ticket=epoch,actor=auth.currentUser.uid;let success=0,failures=[];
+ $('delete-confirm').disabled=true;$('delete-cancel').disabled=true;
+ const targets=[...pendingDeletes];
+ for(const row of targets){
+  if(ticket!==epoch||!isAdmin(auth.currentUser)||auth.currentUser.uid!==actor)break;
+  try{
+   await deleteRecord({db,doc,runTransaction},row,actor,crypto.randomUUID());
+   if(ticket!==epoch)break;
+   success++;all=all.filter(r=>r.path!==row.path);checked.delete(row.path);
+  }catch(e){failures.push(row.title+': '+reportError(e));}
+  $('delete-error').textContent='ดำเนินการแล้ว '+(success+failures.length)+' / '+targets.length;
+ }
+ deleting=false;$('delete-confirm').disabled=false;$('delete-cancel').disabled=false;pendingDeletes=[];
+ if(ticket!==epoch)return;
+ $('delete-dialog').close();
+ $('message').textContent='ลบสำเร็จ '+success+' รายการ'+(failures.length?' · ลบไม่สำเร็จ '+failures.length+' รายการ — '+failures.join(' / '):'');
+ render();
+};
 $('rows').onclick=e=>{const b=e.target.closest('[data-open]');if(b)openDetail(visible[Number(b.dataset.open)]);};
 $('close').onclick=()=>$('detail').close();
 $('export').onclick=()=>{if(isAdmin(auth.currentUser))download('ALLSTAR-admin-filtered.csv',csv(exportRows(visible)),'text/csv;charset=utf-8');};
