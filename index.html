@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Sarabun:wght@400;500;600;700;800&family=Material+Symbols+Outlined:wght@300;400&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./styles.css?v=19.0">
-</head>
+<link rel="stylesheet" href="./profile.css?v=2"></head>
 <body>
   <div id="authLoading" class="auth-loading" role="status">Connecting securely…</div>
   <div id="feedback" class="toast" role="status" aria-live="polite" hidden></div>
@@ -30,7 +30,7 @@
 
   <section id="portalPage" class="landing-page portal-page" aria-labelledby="portalTitle" hidden>
     <header class="landing-header"><strong class="allstar-wordmark">ALLSTAR</strong><span>ASSESSMENT PLATFORM</span></header>
-    <div class="portal-account"><span id="portalEmail"></span><button id="portalSignOut" class="portal-signout" type="button">Sign out</button></div>
+    <div class="portal-account"><details class="user-profile" id="userProfile"><summary aria-label="เปิดเมนูโปรไฟล์"><span class="avatar"><img id="profilePhoto" alt="" hidden><span id="profileInitial">G</span></span><span id="profileName">บัญชีผู้ใช้</span><span aria-hidden="true">⌄</span></summary><div class="profile-menu"><span class="profile-email" id="portalEmail"></span><a id="profileAdmin" href="./admin/" hidden>◇ &nbsp; Admin<small>ภาพรวมและผลประเมิน</small></a><a href="./">⌂ &nbsp; Home</a><button id="portalSignOut" type="button">ออกจากระบบ</button></div></details></div>
     <div class="portal-panel">
       <div class="portal-heading"><div><h1 id="portalTitle">My Assessments</h1><p>Choose an assessment to continue</p></div><span class="material-symbols-outlined portal-grid-icon" aria-hidden="true">grid_view</span></div>
       <div id="portalGrid" class="portal-grid" aria-label="Available assessment systems"></div>
@@ -131,6 +131,6 @@
   </dialog>
   <script src="./firebase-config.js"></script>
   <script src="./portal-config.js?v=19.0"></script>
-  <script type="module" src="./app.js?v=19.1-admin"></script>
+  <script type="module" src="./app.js?v=19.2-admin"></script>
 </body>
 </html>
