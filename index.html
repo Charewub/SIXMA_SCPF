@@ -9,9 +9,16 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Sarabun:wght@400;500;600;700;800&family=Material+Symbols+Outlined:wght@300;400&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./styles.css?v=19.0">
-<link rel="stylesheet" href="./profile.css?v=2"><link rel="stylesheet" href="./typography.css?v=4"></head>
+<link rel="stylesheet" href="./profile.css?v=2"><link rel="stylesheet" href="./typography.css?v=4"><link rel="stylesheet" href="./loading.css?v=5"></head>
 <body>
-  <div id="authLoading" class="auth-loading" role="status">Connecting securely…</div>
+  <div id="authLoading" class="auth-loading">
+<div class="loading-content"><strong class="loading-brand">ALLSTAR</strong>
+<p class="loading-subtitle">ASSESSMENT PLATFORM</p>
+<div class="loading-track" aria-hidden="true"><span></span></div>
+<p class="loading-status" role="status" aria-live="polite">กำลังเตรียมพื้นที่การประเมิน…</p>
+<div id="loadingHelp" class="loading-help" hidden><p id="loadingHelpText" role="status"></p><button id="loadingRetry" type="button">ลองใหม่</button></div>
+<noscript><p>กรุณาเปิด JavaScript เพื่อใช้งานระบบ</p></noscript></div></div>
+<script src="./loading.js?v=5"></script>
   <div id="feedback" class="toast" role="status" aria-live="polite" hidden></div>
 
   <section id="loginPage" class="landing-page login-page" aria-labelledby="loginTitle" hidden>
@@ -131,6 +138,6 @@
   </dialog>
   <script src="./firebase-config.js"></script>
   <script src="./portal-config.js?v=19.0"></script>
-  <script type="module" src="./app.js?v=19.3-identity"></script>
+  <script type="module" src="./app.js?v=19.5-loading"></script>
 </body>
 </html>

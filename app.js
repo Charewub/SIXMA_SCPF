@@ -59,7 +59,7 @@ function showPage(name) {
   window.scrollTo({top:0,behavior:'instant'});
 }
 function showLanding(name) {
-  $('authLoading').hidden=true;
+  if(window.finishAllstarLoading)window.finishAllstarLoading();else $('authLoading').hidden=true;
   $('loginPage').hidden=name!=='login';
   $('portalPage').hidden=name!=='portal';
   $('sixmaApp').hidden=name!=='sixma';
