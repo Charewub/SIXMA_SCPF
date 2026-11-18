@@ -1,3 +1,4 @@
+import {syncUser,tokenIdentity,identityFields,linkLegacy} from './identity.mjs?v=3';
 export function allowedAccount(user) {
   const email=String(user?.email||'').toLowerCase();
   return !!user && user.emailVerified===true
@@ -69,6 +70,7 @@ export async function connect(config) {
   const audit=(tx,input,event,id,at)=>tx.set(ref('AUDIT_LOG',input.request_id),{
     event_id:input.request_id,request_id:input.request_id,event_type:event,assessment_id:id,
     actor:actor(),created_at:at,pair_id:'',previous_option:'',new_option:''});
+  if(allowedAccount(auth.currentUser))await syncUser(f,db,auth.currentUser);
   return {
     user:()=>auth.currentUser,
     async login() {
@@ -79,6 +81,7 @@ export async function connect(config) {
         await authSDK.signOut(auth);
         throw new Error('ระบบนี้อนุญาตบัญชี @airasia.com และบัญชีที่ได้รับข้อยกเว้นเท่านั้น');
       }
+      await syncUser(f,db,result.user);
       return result;
     },
     logout:()=>authSDK.signOut(auth),
@@ -92,7 +95,13 @@ export async function connect(config) {
           f.getDocsFromServer(f.query(f.collection(db,'ASSESSMENTS'),f.where('created_by','==',actor()))),
           list('PAIR_MASTER')
         ]);
-        const assessments=assessmentDocs.docs.map(d=>d.data());
+        const identity=await tokenIdentity(auth.currentUser);
+        const assessments=[];
+        // Sequential backfill, only records belonging to the signed-in UID.
+        for(const row of assessmentDocs.docs) {
+          const linked=await linkLegacy(f,db,row,'sixma',identity);
+          if(linked)assessments.push(linked);
+        }
         const questions=pairs.filter(p=>p.questionnaire_version===VERSION).sort((a,b)=>a.pair_no-b.pair_no);
         if(questions.length!==72 || questions.some((p,i)=>p.pair_id!=='LP72-'+String(i+1).padStart(3,'0') || p.qa_status!=='PASS')) {
           throw new Error('Import the SIXMA migration data before opening assessments.');
@@ -131,6 +140,7 @@ export async function connect(config) {
           throw new Error('INVALID_RELATIONSHIP');
         }
         const id='ASM-'+input.request_id;
+        const identity=await tokenIdentity(auth.currentUser);
         return f.runTransaction(db,async tx=>{
           const [existing,pos]=await Promise.all([tx.get(ref('ASSESSMENTS',id)),tx.get(ref('POSITIONS',input.position_id))]);
           if(existing.exists()){if(existing.data().created_by!==actor())throw new Error('ACCESS_DENIED');return project(existing.data());}
@@ -138,7 +148,7 @@ export async function connect(config) {
           const at=new Date().toISOString(),p=pos.data(),round=Number(p.last_round_no||0)+1;
           const a={assessment_id:id,position_id:input.position_id,position_title_snapshot:p.position_title,
             round_no:round,relationship,questionnaire_version:VERSION,status:'Not Started',answered_count:0,total_pairs:72,
-            current_pair_no:1,revision:0,create_request_id:input.request_id,created_at:at,updated_at:at,completed_at:'',created_by:actor()};
+            current_pair_no:1,revision:0,create_request_id:input.request_id,created_at:at,updated_at:at,completed_at:'',created_by:actor(),...identityFields(identity,'created',f.serverTimestamp())};
           const r={assessment_id:id,position_id:a.position_id,position_title:p.position_title,round_no:round,
             questionnaire_version:VERSION,status:a.status,answered_count:0,revision:0,saved_at:'',last_request_id:'',saved_by:actor()};
           KEYS.forEach(k=>r[k]='');

@@ -1,5 +1,5 @@
 import {setProfile} from './profile.js?v=2';
-import {connect,VERSION,allowedAccount} from './firebase-adapter.js?v=18.6';
+import {connect,VERSION,allowedAccount} from './firebase-adapter.js?v=19.3';
 import {AssessmentSession,draftKey} from './session.js?v=18.6';
 
 const $=id=>document.getElementById(id);
