@@ -1,0 +1,6 @@
+@import url('https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap');
+:root{--app-font:'Kanit',Tahoma,Arial,sans-serif}
+body,body *:not(.material-symbols-outlined):not(.material-icons):not(.material-icons-outlined):not(.material-symbols-rounded){font-family:var(--app-font)!important}
+input,button,select,textarea{font-family:var(--app-font)!important}
+.ui-icon{width:24px;height:24px;display:inline-block;vertical-align:middle;flex-shrink:0}
+.profile-menu .ui-icon{width:20px;height:20px;margin-right:8px}
