@@ -135,6 +135,14 @@ function icon(name) {
 function renderPortal() {
   const grid=$('portalGrid');
   grid.replaceChildren();
+  const adminUser=state.backend?.user();
+  if(adminUser?.emailVerified && ['guntrakon@gmail.com','guntrakon@airasia.com'].includes(String(adminUser.email||'').toLowerCase())) {
+    const link=document.createElement('a');
+    link.href='./admin/';
+    link.textContent='Admin · ภาพรวมและผลประเมิน →';
+    link.style.cssText='grid-column:1/-1;background:#173761;color:white;padding:18px 24px;border-radius:14px;text-decoration:none;font-weight:700';
+    grid.appendChild(link);
+  }
   portalModules.forEach(module=>{
     const soon=module.status!=='active';
     const tile=document.createElement('button');
