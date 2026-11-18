@@ -1,3 +1,5 @@
+import * as identitySDK from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
+import {syncUser,tokenIdentity,identityFields,linkLegacy} from '../identity.mjs?v=3';
 import {initializeApp} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js';
 import {getAuth,GoogleAuthProvider,signInWithPopup,onAuthStateChanged,signOut} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
 import {getFirestore,collection,doc,getDocFromServer,getDocsFromServer,query,orderBy,runTransaction} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
@@ -16,7 +18,12 @@ async function call(action) {
   try {
     if (action === 'list') {
       const snapshot = await getDocsFromServer(query(records, orderBy('updated', 'desc')));
-      return snapshot.docs.map(row => ({...row.data(), id: row.id}));
+      const identity=await tokenIdentity(auth.currentUser), rows=[];
+      for(const row of snapshot.docs) {
+        const linked=await linkLegacy(identitySDK,db,row,'tc',identity);
+        if(linked)rows.push({...linked,id:row.id});
+      }
+      return rows;
     }
     const ref = doc(records, id);
     if (action === 'get') {
@@ -24,6 +31,7 @@ async function call(action) {
       if (!snapshot.exists()) throw Error('ไม่พบรายการ');
       return snapshot.data();
     }
+    const identity=await tokenIdentity(auth.currentUser);
     const finishing = action === 'finish';
     const {people, answers, period, department, path, revision} = record;
     if (new Set(people.map(p => p.empId)).size !== people.length)
@@ -42,6 +50,11 @@ async function call(action) {
       const updated = new Date().toISOString();
       const next = {owner: email, people, answers, period, department, path, revision: revision + 1,
         status: finishing ? 'FINAL' : 'DRAFT', bankVersion: 'v2.1', scoringVersion: 'v1', updated};
+      Object.assign(next,previous?.identity_source ? {
+        owner_uid:previous.owner_uid,created_by_name:previous.created_by_name,
+        created_by_email:previous.created_by_email,identity_source:previous.identity_source,
+        identity_recorded_at:previous.identity_recorded_at
+      } : {owner_uid:identity.uid,...identityFields(identity,'created',identitySDK.serverTimestamp())});
       if (finishing) {
         next.finalizedAt = updated;
         next.results = people.map(person => {
@@ -130,7 +143,7 @@ if(!name || !/^1[0-9]*$/.test(empId) || !/^[A-Za-z0-9 ]+$/.test(name))throw Erro
 people.push({id:'p'+people.length,name,empId});
 }}if(people.length<3 || people.length>5)throw Error('กรุณาระบุพนักงาน 3–5 คน');id=crypto.randomUUID();record={revision:0,department:f.get('dept'),period:f.get('period'),path:f.get('path'),people,answers:{}};record=await call('save');page=0;question();});};
 root.onclick=e=>{const b=e.target.closest('button');if(!b||!b.dataset.action&&!b.dataset.rate&&!b.dataset.box)return;run(async()=>{const action=b.dataset.action;if(b.dataset.rate){const q=Q[page],old=record;record={...old,answers:{...old.answers,[q.id]:{...old.answers[q.id],[b.dataset.rate]:Number(b.dataset.v)}}};try{record=await call('save');}catch(err){record=old;throw err;}question();return;}if(b.dataset.box){box=b.dataset.box;summary();return;}if(action==='login')await signInWithPopup(auth,new GoogleAuthProvider());if(action==='logout')await signOut(auth);if(action==='home')await home();if(action==='add-person'||action==='remove-person')updatePeople(action);if(action==='welcome')welcome();if(action==='guide'||action==='new')guide();if(action==='begin'&&document.getElementById('bybConsent')?.checked)create();if(action?.startsWith('open-')){id=action.slice(5);record=await call('get');if(record.status==='FINAL'){box=record.results[0].box;summary();}else{page=Q.findIndex(q=>record.people.some(p=>!record.answers[q.id]?.[p.id]));if(page<0)page=29;question();}}if(action==='prev'){page--;question();}if(action==='next'||action==='finish'){if(record.people.some(p=>!record.answers[Q[page].id]?.[p.id]))throw Error('กรุณาประเมินทุกคนในข้อนี้');if(action==='next'){page++;question();}else{record=await call('finish');box=record.results[0].box;summary();}}});};
-onAuthStateChanged(auth,async user=>{root.innerHTML='';msg.textContent='';record=null;id=null;document.querySelector('#identity').textContent=user?.email||'';if(!user){root.innerHTML='<section class="card"><h1>Talent Compass</h1>'+button('login','เข้าสู่ระบบด้วยบัญชี Google บริษัท')+'</section>';return;}try{await call('list');welcome();}catch(e){msg.textContent=e.message;root.innerHTML=button('logout','ออกจากระบบ');}});
+onAuthStateChanged(auth,async user=>{root.innerHTML='';msg.textContent='';record=null;id=null;document.querySelector('#identity').textContent=user?.email||'';if(!user){root.innerHTML='<section class="card"><h1>Talent Compass</h1>'+button('login','เข้าสู่ระบบด้วยบัญชี Google บริษัท')+'</section>';return;}try{await syncUser(identitySDK,db,user);await call('list');welcome();}catch(e){msg.textContent=e.message;root.innerHTML=button('logout','ออกจากระบบ');}});
 
 root.addEventListener('change', event => {
  if(event.target.id === 'bybConsent') document.getElementById('bybContinue').disabled = !event.target.checked;
